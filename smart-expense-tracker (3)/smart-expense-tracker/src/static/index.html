@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Expense Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F9FAF6;
+    --stripe: #EAF3E4;
+    --ink: #1F2B22;
+    --ink-soft: #4B5B4E;
+    --ledger-green: #2F6844;
+    --ledger-green-dark: #234E33;
+    --stamp-red: #B23A2E;
+    --rule: #C9D2C3;
+    --rule-soft: #DEE6D9;
+  }
+
+  * { box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    background-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 39px,
+      var(--rule-soft) 39px,
+      var(--rule-soft) 40px
+    );
+    background-size: 100% 40px;
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 48px 20px 80px;
+  }
+
+  .sheet {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  /* ---------- Header / running total ---------- */
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 28px;
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  h1 .eyebrow {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 400;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+
+  .total-readout {
+    text-align: right;
+  }
+
+  .total-readout .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .total-readout .figure {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 32px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ledger-green-dark);
+    transition: transform 0.15s ease;
+  }
+
+  .total-readout .figure.tick {
+    transform: scale(1.06);
+  }
+
+  /* ---------- Entry form ---------- */
+
+  form.entry {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr auto;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  form.entry label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+
+  form.entry input {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--rule);
+    background: #FFFFFF;
+    border-radius: 3px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+  }
+
+  form.entry input[name="amount"],
+  form.entry input[name="date"] {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  form.entry input:focus-visible {
+    outline: 2px solid var(--ledger-green);
+    outline-offset: 1px;
+    border-color: var(--ledger-green);
+  }
+
+  form.entry button {
+    align-self: end;
+    padding: 9px 16px;
+    background: var(--ledger-green);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 3px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+    white-space: nowrap;
+  }
+
+  form.entry button:hover { background: var(--ledger-green-dark); }
+  form.entry button:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  .form-error {
+    grid-column: 1 / -1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--stamp-red);
+    min-height: 16px;
+  }
+
+  /* ---------- Category filter chips ---------- */
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 5px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    background: #FFFFFF;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+
+  .chip:hover { border-color: var(--ledger-green); }
+
+  .chip.active {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #FFFFFF;
+  }
+
+  .chip:focus-visible {
+    outline: 2px solid var(--ledger-green);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Ledger table ---------- */
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 8px 10px;
+    border-bottom: 2px solid var(--ink);
+  }
+
+  thead th.num { text-align: right; }
+  thead th.action { width: 44px; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--rule-soft);
+  }
+
+  tbody tr:nth-child(even) { background: var(--stripe); }
+
+  tbody tr.leaving {
+    animation: rowFade 0.18s ease forwards;
+  }
+
+  @keyframes rowFade {
+    to { opacity: 0; transform: translateX(6px); }
+  }
+
+  tbody tr.entering {
+    animation: rowIn 0.2s ease;
+  }
+
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  td {
+    padding: 10px;
+    vertical-align: middle;
+  }
+
+  td.date, td.amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  td.amount { text-align: right; font-weight: 500; }
+
+  td.category .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: #FFFFFF;
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+  }
+
+  td.action { text-align: center; }
+
+  .stamp-delete {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid var(--stamp-red);
+    background: transparent;
+    color: var(--stamp-red);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.12s ease;
+  }
+
+  .stamp-delete:hover {
+    background: var(--stamp-red);
+    color: #FFFFFF;
+    transform: rotate(-8deg);
+  }
+
+  .stamp-delete:focus-visible {
+    outline: 2px solid var(--stamp-red);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Empty state ---------- */
+
+  .empty {
+    padding: 40px 10px;
+    text-align: center;
+    color: var(--ink-soft);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    border: 1px dashed var(--rule);
+    border-radius: 4px;
+    margin-top: 4px;
+  }
+
+  footer {
+    margin-top: 40px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  @media (max-width: 620px) {
+    form.entry {
+      grid-template-columns: 1fr 1fr;
+    }
+    form.entry button { grid-column: 1 / -1; }
+    thead th.category, td.category { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="sheet">
+    <header>
+      <h1><span class="eyebrow">Smart Expense Tracker</span>Ledger</h1>
+      <div class="total-readout">
+        <div class="label" id="total-label">Total — all entries</div>
+        <div class="figure" id="total-figure">$0.00</div>
+      </div>
+    </header>
+
+    <form class="entry" id="entry-form" novalidate>
+      <div>
+        <label for="f-title">Title</label>
+        <input id="f-title" name="title" type="text" placeholder="Lunch with client" required />
+      </div>
+      <div>
+        <label for="f-amount">Amount</label>
+        <input id="f-amount" name="amount" type="number" step="0.01" min="0.01" placeholder="24.50" required />
+      </div>
+      <div>
+        <label for="f-category">Category</label>
+        <input id="f-category" name="category" type="text" placeholder="Food" required />
+      </div>
+      <div>
+        <label for="f-date">Date</label>
+        <input id="f-date" name="date" type="date" required />
+      </div>
+      <button type="submit">+ Add entry</button>
+      <div class="form-error" id="form-error"></div>
+    </form>
+
+    <div class="filters" id="filters">
+      <button class="chip active" data-category="">All</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="date">Date</th>
+          <th>Title</th>
+          <th class="category">Category</th>
+          <th class="num">Amount</th>
+          <th class="action"></th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+
+    <div class="empty" id="empty-state" hidden>No entries yet — add your first expense above.</div>
+
+    <footer>expenses persist to a local JSON file · this UI talks to the API on the same origin</footer>
+  </div>
+
+<script>
+  const API = '/expenses';
+  let activeCategory = '';
+  let allExpenses = [];
+
+  const rowsEl = document.getElementById('rows');
+  const emptyEl = document.getElementById('empty-state');
+  const filtersEl = document.getElementById('filters');
+  const totalFigureEl = document.getElementById('total-figure');
+  const totalLabelEl = document.getElementById('total-label');
+  const formEl = document.getElementById('entry-form');
+  const formErrorEl = document.getElementById('form-error');
+
+  function money(n) {
+    return '$' + Number(n).toFixed(2);
+  }
+
+  function formatDate(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+  }
+
+  async function fetchExpenses() {
+    const res = await fetch(API);
+    allExpenses = await res.json();
+    renderFilters();
+    renderRows();
+    await refreshTotal();
+  }
+
+  function renderFilters() {
+    const categories = [...new Set(allExpenses.map(e => e.category))].sort();
+    filtersEl.innerHTML = '';
+    const allChip = makeChip('All', '');
+    filtersEl.appendChild(allChip);
+    categories.forEach(cat => filtersEl.appendChild(makeChip(cat, cat)));
+  }
+
+  function makeChip(label, value) {
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (value === activeCategory ? ' active' : '');
+    btn.textContent = label;
+    btn.dataset.category = value;
+    btn.addEventListener('click', () => {
+      activeCategory = value;
+      renderFilters();
+      renderRows();
+      refreshTotal();
+    });
+    return btn;
+  }
+
+  function renderRows() {
+    const filtered = activeCategory
+      ? allExpenses.filter(e => e.category === activeCategory)
+      : allExpenses;
+
+    rowsEl.innerHTML = '';
+    emptyEl.hidden = filtered.length > 0;
+
+    filtered
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+      .forEach(e => rowsEl.appendChild(makeRow(e)));
+  }
+
+  function makeRow(expense) {
+    const tr = document.createElement('tr');
+    tr.dataset.id = expense.id;
+    tr.innerHTML = `
+      <td class="date">${formatDate(expense.date)}</td>
+      <td>${escapeHtml(expense.title)}</td>
+      <td class="category"><span class="tag">${escapeHtml(expense.category)}</span></td>
+      <td class="amount">${money(expense.amount)}</td>
+      <td class="action">
+        <button class="stamp-delete" title="Delete entry" aria-label="Delete ${escapeHtml(expense.title)}">&times;</button>
+      </td>
+    `;
+    tr.querySelector('.stamp-delete').addEventListener('click', () => deleteExpense(expense.id, tr));
+    return tr;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  async function refreshTotal() {
+    const url = activeCategory
+      ? `${API}/total?category=${encodeURIComponent(activeCategory)}`
+      : `${API}/total`;
+    const res = await fetch(url);
+    const data = await res.json();
+    totalLabelEl.textContent = activeCategory ? `Total — ${activeCategory}` : 'Total — all entries';
+    totalFigureEl.textContent = money(data.total);
+    totalFigureEl.classList.remove('tick');
+    void totalFigureEl.offsetWidth;
+    totalFigureEl.classList.add('tick');
+  }
+
+  async function deleteExpense(id, rowEl) {
+    rowEl.classList.add('leaving');
+    await new Promise(r => setTimeout(r, 160));
+    const res = await fetch(`${API}/${id}`, { method: 'DELETE' });
+    if (res.status === 204 || res.status === 404) {
+      await fetchExpenses();
+    }
+  }
+
+  formEl.addEventListener('submit', async (evt) => {
+    evt.preventDefault();
+    formErrorEl.textContent = '';
+    const payload = {
+      title: formEl.title.value.trim(),
+      amount: parseFloat(formEl.amount.value),
+      category: formEl.category.value.trim(),
+      date: formEl.date.value,
+    };
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 201) {
+      formEl.reset();
+      formEl.title.focus();
+      await fetchExpenses();
+    } else {
+      const err = await res.json().catch(() => null);
+      const firstMsg = err?.detail?.[0]?.msg || 'Couldn\'t add that entry — check the fields above.';
+      formErrorEl.textContent = firstMsg;
+    }
+  });
+
+  document.getElementById('f-date').valueAsDate = new Date();
+  fetchExpenses();
+</script>
+</body>
+</html>
